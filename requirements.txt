@@ -1,0 +1,9 @@
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+streamlit>=1.30
+plotly>=5.18
+gymnasium>=0.29
+scipy>=1.11
+seaborn>=0.13
+pyarrow>=14.0
