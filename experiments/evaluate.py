@@ -206,6 +206,81 @@ def generate_plots(results_df: pd.DataFrame, all_trajectories: dict):
     print(f"  Saved: cumulative_reward.png")
 
 
+def save_additional_csvs(results_df: pd.DataFrame, all_trajectories: dict):
+    """Generate specialized CSV files for IEEE publication reporting and step-level analysis."""
+    # 1. IEEE Results Summary Table (Alibaba Replay)
+    replay = results_df[results_df["scenario"] == "alibaba_replay"].copy()
+    if not replay.empty:
+        baseline_row = replay[replay["algorithm"] == "rule_based"]
+        base_overheat = baseline_row["overheat_events"].values[0] if not baseline_row.empty else None
+        base_energy = baseline_row["total_energy"].values[0] if not baseline_row.empty else None
+
+        ieee_rows = []
+        name_map = {
+            "rule_based": "Rule-Based Baseline",
+            "q_learning": "Q-Learning (Off-Policy TD)",
+            "sarsa": "SARSA (On-Policy TD)",
+            "monte_carlo": "Monte Carlo (First-Visit)",
+            "value_iteration": "Value Iteration (Model-Based DP)",
+        }
+
+        for _, row in replay.iterrows():
+            algo = row["algorithm"]
+            overheat = row["overheat_events"]
+            energy = row["total_energy"]
+            
+            overheat_red = ((base_overheat - overheat) / base_overheat * 100) if base_overheat else 0.0
+            energy_diff = ((energy - base_energy) / base_energy * 100) if base_energy else 0.0
+
+            ieee_rows.append({
+                "Algorithm": name_map.get(algo, algo),
+                "Cumulative Reward": round(row["cumulative_reward"], 2),
+                "Peak Temp (°C)": round(row["max_temperature"], 2),
+                "Mean Temp (°C)": round(row["avg_temperature"], 2),
+                "Temp Variance": round(row["temperature_variance"], 2),
+                "Time Above Safe (Steps)": int(row["time_above_safe"]),
+                "Overheat Events": int(row["overheat_events"]),
+                "Thermal Violation Reduction (%)": f"{overheat_red:+.1f}%" if algo != "rule_based" else "Baseline",
+                "Total Cooling Energy": round(row["total_energy"], 1),
+                "Energy Delta vs Baseline (%)": f"{energy_diff:+.1f}%" if algo != "rule_based" else "Baseline",
+            })
+
+        ieee_df = pd.DataFrame(ieee_rows)
+        ieee_path = RESULTS_DIR / "ieee_results_table.csv"
+        ieee_df.to_csv(ieee_path, index=False)
+        print(f"  Saved: {ieee_path.name}")
+
+    # 2. Scenario Benchmark Matrix
+    pivot_cols = ["cumulative_reward", "total_energy", "max_temperature", "overheat_events"]
+    scenario_matrix = results_df.pivot_table(index="algorithm", columns="scenario", values=pivot_cols)
+    scenario_matrix_path = RESULTS_DIR / "scenario_benchmark_matrix.csv"
+    scenario_matrix.to_csv(scenario_matrix_path)
+    print(f"  Saved: {scenario_matrix_path.name}")
+
+    # 3. Trajectory Step Log (Step-level telemetry)
+    step_rows = []
+    for algo, sc_dict in all_trajectories.items():
+        for sc_name, metric in sc_dict.items():
+            for t in range(len(metric.temperatures)):
+                step_rows.append({
+                    "step": t + 1,
+                    "scenario": sc_name,
+                    "algorithm": algo,
+                    "mean_temperature": round(metric.temperatures[t], 4),
+                    "max_temperature": round(metric.max_temperatures[t], 4),
+                    "cooling_energy": round(metric.energies[t], 4),
+                    "reward": round(metric.rewards[t], 4),
+                    "overheated_cells": metric.overheated_counts[t],
+                    "action": metric.actions[t],
+                })
+
+    if step_rows:
+        trajectory_df = pd.DataFrame(step_rows)
+        traj_path = RESULTS_DIR / "trajectories_step_log.csv"
+        trajectory_df.to_csv(traj_path, index=False)
+        print(f"  Saved: {traj_path.name}")
+
+
 def print_experiment_summary(results_df: pd.DataFrame):
     """Print the experiment findings."""
     replay = results_df[results_df["scenario"] == "alibaba_replay"]
@@ -286,6 +361,9 @@ def main():
     csv_path = RESULTS_DIR / "comparison.csv"
     results_df.to_csv(csv_path, index=False)
     print(f"\n  Results saved to {csv_path}")
+
+    # Export additional structured CSVs for IEEE reporting & analysis
+    save_additional_csvs(results_df, all_trajectories)
 
     # Generate plots
     print("\n  Generating plots ...")

@@ -1,0 +1,6 @@
+Algorithm,Cumulative Reward,Peak Temp (°C),Mean Temp (°C),Temp Variance,Time Above Safe (Steps),Overheat Events,Thermal Violation Reduction (%),Total Cooling Energy,Energy Delta vs Baseline (%)
+Rule-Based Baseline,-5775.28,72.87,46.12,344.57,486,10723,Baseline,40439.8,Baseline
+Q-Learning (Off-Policy TD),-2297.02,70.76,28.72,428.05,290,8851,+17.5%,59012.9,+45.9%
+SARSA (On-Policy TD),-2725.18,71.3,31.2,378.9,327,8871,+17.3%,56672.9,+40.1%
+Monte Carlo (First-Visit),-1745.12,58.75,30.6,228.12,316,9475,+11.6%,55545.7,+37.4%
+Value Iteration (Model-Based DP),-1928.71,57.55,29.76,410.54,309,9637,+10.1%,57893.1,+43.2%
